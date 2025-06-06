@@ -9,12 +9,12 @@ return new class extends Migration
     /**
      * Run the migrations.
      */
-   public function up()
-{
-    Schema::table('users', function (Blueprint $table) {
-        $table->string('last_session_id', 255)->nullable()->after('remember_token');
-    });
-}
+    public function up()
+    {
+        Schema::table('users', function (Blueprint $table) {
+            $table->string('last_session_id', 255)->nullable()->after('remember_token');
+        });
+    }
 
 
     /**

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Session;
@@ -32,15 +33,15 @@ class AuthV2Controller extends Controller
      */
     public function login(Request $request)
     {
+        // 1. Validasi input
         $credentials = $request->validate([
             'username' => 'required|string',
             'password' => 'required|string',
         ]);
 
         $remember = $request->filled('remember');
-        $currentSessionId = Session::getId();
 
-        // Ambil user terlebih dahulu
+        // 2. Ambil data user
         $user = User::where('username', $credentials['username'])->first();
 
         if (!$user) {
@@ -49,36 +50,45 @@ class AuthV2Controller extends Controller
             ])->onlyInput('username');
         }
 
-        // Cek apakah user sedang login di sesi lain
-        if ($user->last_session_id && $user->last_session_id !== $currentSessionId) {
-            return back()->withErrors([
-                'username' => 'Akun ini sedang login di perangkat lain.',
-            ])->onlyInput('username');
+        // 3. Cek apakah ada sesi lain yang tercatat
+        if ($user->last_session_id) {
+            // Ambil data sesi dari database
+            $lastSession = DB::table('sessions')->find($user->last_session_id);
+
+            // Cek apakah sesi tersebut masih ada DAN masih aktif (belum kedaluwarsa)
+            // 'session.lifetime' diambil dari config Anda (dalam menit), dikali 60 jadi detik
+            if ($lastSession && (time() - $lastSession->last_activity) < (config('session.lifetime') * 60)) {
+                return back()->withErrors([
+                    'username' => 'Akun ini sedang digunakan di perangkat lain. Harap logout terlebih dahulu atau tunggu sesi berakhir.',
+                ])->onlyInput('username');
+            }
+            // Jika sesi sudah tidak ada atau sudah kedaluwarsa, kita bisa lanjutkan login
         }
 
-        // Proses autentikasi
+        // 4. Proses Autentikasi
         if (Auth::attempt($credentials, $remember)) {
-
-            // Cek status aktif
-            if ($user->is_active != '1') {
-                Auth::logout();
+            // Cek status aktif user
+            if (Auth::user()->is_active != '1') {
+                Auth::logout(); // Logout paksa jika tidak aktif
                 return back()->withErrors([
                     'username' => 'Akun Anda tidak aktif. Silakan hubungi administrator.',
                 ])->onlyInput('username');
             }
 
-            // Simpan session ID saat ini
-            $user->last_session_id = $currentSessionId;
+            // 5. Regenerate session ID untuk keamanan
+            $request->session()->regenerate();
+
+            // 6. Simpan session ID BARU ke database SETELAH regenerate
+            $user->last_session_id = Session::getId();
             $user->save();
 
-            $request->session()->regenerate();
             return redirect()->intended(route('dashboard.index'));
         }
 
-        // Autentikasi gagal
-        throw ValidationException::withMessages([
-            'username' => __('auth.failed'),
-        ])->redirectTo(route('login'));
+        // 7. Autentikasi gagal (password salah)
+        return back()->withErrors([
+            'username' => 'Kombinasi username dan password salah.',
+        ])->onlyInput('username');
     }
 
     /**
@@ -87,6 +97,8 @@ class AuthV2Controller extends Controller
     public function logout(Request $request)
     {
         $user = Auth::user();
+
+        // Kosongkan last_session_id saat logout
         if ($user) {
             $user->last_session_id = null;
             $user->save();
