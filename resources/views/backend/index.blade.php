@@ -430,7 +430,7 @@
 @endif
 
 {{-- Modal for Editing Piket (used by Superadmin Dashboard) --}}
-@if(Auth::user()->role === 'superadmin' && $piketToday)
+@if(in_array(Auth::user()->role, ['superadmin', 'piket']) && $piketToday)
 <div class="modal fade" id="editPiketModal" tabindex="-1" aria-labelledby="editPiketModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content">

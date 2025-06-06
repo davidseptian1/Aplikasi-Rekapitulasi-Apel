@@ -100,6 +100,12 @@
                         \Carbon\Carbon::parse($piketToday->piket_date)->format('d/m/Y') : '-' }}</small>
                 </div>
             </div>
+
+            <div class="col-12 text-center mt-2">
+                <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editPiketModal">
+                    <i class="fas fa-edit me-1"></i> Edit Piket Hari Ini
+                </button>
+            </div>
             @endif
         </div>
     </div>

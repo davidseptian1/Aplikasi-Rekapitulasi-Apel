@@ -41,7 +41,7 @@ class DashboardController extends Controller
         $data['piketToday'] = $piketToday;
         $data['hasPiketToday'] = (bool)$piketToday;
 
-        if ($currentUser->role === 'superadmin' || ($currentUser->role === 'piket' && !$piketToday)) {
+        if (in_array($currentUser->role, ['superadmin', 'piket'])) {
             $data['usersForPiketSelection'] = User::where('is_active', '1')
                 ->orderBy('name')->get(['id', 'name']);
         }
