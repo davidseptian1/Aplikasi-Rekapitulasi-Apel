@@ -527,6 +527,61 @@
             });
         }
 
+        // ==========================================================
+        // TAMBAHKAN BLOK SCRIPT DI BAWAH INI
+        // ==========================================================
+        @if(Auth::user()->role === 'pimpinan' && isset($kehadiranChartData))
+            const ctxKehadiran = document.getElementById('kehadiranChart');
+            if (ctxKehadiran) {
+                const labelsKehadiran = @json($kehadiranChartData['labels']);
+                const dataKehadiran = @json($kehadiranChartData['data']);
+                new Chart(ctxKehadiran, {
+                    type: 'pie', // Menggunakan tipe Pie Chart
+                    data: {
+                        labels: labelsKehadiran,
+                        datasets: [{
+                            label: 'Total',
+                            data: dataKehadiran,
+                            backgroundColor: [ // Sediakan warna yang cukup
+                                'rgba(40, 167, 69, 0.7)',  // success (Hadir)
+                                'rgba(255, 193, 7, 0.7)',   // warning (Izin)
+                                'rgba(220, 53, 69, 0.7)',   // danger (Sakit/Alpha)
+                                'rgba(0, 123, 255, 0.7)',   // primary
+                                'rgba(23, 162, 184, 0.7)',  // info
+                                'rgba(108, 117, 125, 0.7)', // secondary
+                                'rgba(253, 126, 20, 0.7)',  // orange
+                            ],
+                            borderColor: '#fff',
+                            borderWidth: 2
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'top', // Pindahkan legenda ke atas
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        let label = context.label || '';
+                                        if (label) {
+                                            label += ': ';
+                                        }
+                                        if (context.parsed !== null) {
+                                            label += context.parsed + ' Personel';
+                                        }
+                                        return label;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        @endif
+
         // Pimpinan Dashboard: Chart
         @if(Auth::user()->role === 'pimpinan' && isset($personel_per_subdis_chart))
             const ctxPersonelSubdis = document.getElementById('personelSubdisChart');

@@ -90,6 +90,5 @@ class GrafikKehadiranController extends Controller
         ];
 
         return view('backend.grafik_kehadiran.index', $data);
-
     }
 }

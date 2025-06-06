@@ -126,11 +126,39 @@ class DashboardController extends Controller
                 break;
 
             case 'pimpinan':
+                // 1. Tentukan Rentang Tanggal untuk Filter
+                $startDate = $request->input('start_date', Carbon::now()->startOfMonth()->format('Y-m-d'));
+                $endDate = $request->input('end_date', Carbon::now()->endOfMonth()->format('Y-m-d'));
+
+                // Kirim variabel tanggal ke view untuk ditampilkan di form filter
+                $data['startDate'] = $startDate;
+                $data['endDate'] = $endDate;
+
+                // 2. Data Statistik Umum (tidak terpengaruh tanggal)
                 $data['total_personel_pimpinan'] = User::where('role', 'personil')->where('is_active', '1')->count();
                 $data['total_subdis_pimpinan'] = Subdis::count();
+
+                // 3. Data untuk Grafik Personel per Subdis (tidak terpengaruh tanggal)
                 $data['personel_per_subdis_chart'] = Subdis::withCount(['users as users_count' => fn($q) => $q->where('role', 'personil')->where('is_active', '1')])
                     ->orderBy('name')
                     ->get(['id', 'name']);
+
+                // 4. Data BARU untuk Grafik Kehadiran Berdasarkan Rentang Tanggal
+                $kehadiranData = DB::table('apel_attendances')
+                    ->join('keterangans', 'apel_attendances.keterangan_id', '=', 'keterangans.id')
+                    ->join('apel_sessions', 'apel_attendances.apel_session_id', '=', 'apel_sessions.id')
+                    ->whereBetween('apel_sessions.date', [$startDate, $endDate])
+                    ->select('keterangans.name', DB::raw('count(*) as total'))
+                    ->groupBy('keterangans.name')
+                    ->orderBy('total', 'desc')
+                    ->get();
+
+                // Siapkan data untuk Chart.js
+                $data['kehadiranChartData'] = [
+                    'labels' => $kehadiranData->pluck('name'),
+                    'data' => $kehadiranData->pluck('total'),
+                ];
+
                 break;
 
             case 'superadmin':
