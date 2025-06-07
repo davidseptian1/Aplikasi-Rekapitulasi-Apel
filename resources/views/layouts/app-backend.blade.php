@@ -185,6 +185,10 @@
                                     <a class="{{ request()->routeIs('subdis.*') ? 'active' : '' }}"
                                         href="{{ route('subdis.index') }}">Subdis</a>
                                 </li>
+                                <li>
+                                    <a class="{{ request()->routeIs('jam-apel.*') ? 'active' : '' }}"
+                                        href="{{ route('jam-apel.index') }}">Jam Apel</a>
+                                </li>
                             </ul>
                         </li>
                         <li>

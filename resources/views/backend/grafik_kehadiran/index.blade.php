@@ -29,13 +29,11 @@
     .chart-container {
         position: relative;
         height: 300px;
-        /* Adjust height as needed */
         width: 100%;
     }
 
     .pie-chart-container {
         height: 320px;
-        /* Slightly more for pie */
     }
 </style>
 @endpush
@@ -54,13 +52,19 @@
 
         @include('backend.partials.alert')
 
+        {{-- FORM FILTER DENGAN RENTANG TANGGAL --}}
         <div class="filter-bar">
             <form method="GET" action="{{ route('grafik.kehadiran.index') }}">
                 <div class="row g-2 align-items-end">
                     <div class="col-md-3">
-                        <label for="date_filter_grafik" class="form-label">Pilih Tanggal</label>
-                        <input type="date" class="form-control" id="date_filter_grafik" name="date"
-                            value="{{ $filterDate }}">
+                        <label for="start_date_filter" class="form-label">Tanggal Mulai</label>
+                        <input type="date" class="form-control" id="start_date_filter" name="start_date"
+                            value="{{ $startDate }}">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="end_date_filter" class="form-label">Tanggal Akhir</label>
+                        <input type="date" class="form-control" id="end_date_filter" name="end_date"
+                            value="{{ $endDate }}">
                     </div>
                     <div class="col-md-4">
                         <label for="subdis_filter_grafik" class="form-label">Pilih Subdis</label>
@@ -74,8 +78,8 @@
                         </select>
                     </div>
                     <div class="col-md-2">
-                        <button type="submit" class="btn btn-sm btn-primary w-100">
-                            <i class="fas fa-search me-1"></i> Cari
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="fas fa-filter me-1"></i> Filter
                         </button>
                     </div>
                 </div>
@@ -105,12 +109,12 @@
         </div>
 
         <div class="row">
-            {{-- Rekap Hadir vs Tidak Hadir (Bar Chart) --}}
-            <div class="col-lg-12 mb-4"> {{-- Made this full width for better display --}}
+            {{-- GRAFIK BARU: Tren Kehadiran Harian (Line Chart) --}}
+            <div class="col-lg-12 mb-4">
                 <div class="chart-card">
-                    <h5>Rekap Kehadiran Berdasarkan Hadir dan Tidak Hadir</h5>
+                    <h5>Tren Kehadiran Harian</h5>
                     <div class="chart-container" style="height: 280px;">
-                        <canvas id="hadirTidakHadirChart"></canvas>
+                        <canvas id="trenHarianChart"></canvas>
                     </div>
                 </div>
             </div>
@@ -121,121 +125,119 @@
 @endsection
 
 @push('scripts')
-{{-- Ensure Chart.js is included, ideally in app-backend.blade.php or here if not global --}}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
     $(document).ready(function() {
-    // Initialize Select2 for subdis filter if you use it
-    if ($('#subdis_filter_grafik').length) {
-        $('#subdis_filter_grafik').select2({
-            width: '100%',
-            placeholder: '-- Semua Subdis --'
-        });
-    }
+        if ($('#subdis_filter_grafik').length) {
+            $('#subdis_filter_grafik').select2({
+                width: '100%',
+                placeholder: '-- Semua Subdis --'
+            });
+        }
 
-    // Chart 1: Total Keterangan Kehadiran (Bar Chart)
-    const totalKeteranganCtx = document.getElementById('totalKeteranganChart');
-    if (totalKeteranganCtx) {
-        new Chart(totalKeteranganCtx, {
-            type: 'bar',
-            data: {
-                labels: @json($chartKeteranganLabels),
-                datasets: [{
-                    label: 'Jumlah',
-                    data: @json($chartKeteranganData),
-                    backgroundColor: [ // Example colors, add more if more keterangan types
-                        'rgba(255, 99, 132, 0.7)', 'rgba(54, 162, 235, 0.7)',
-                        'rgba(255, 206, 86, 0.7)', 'rgba(75, 192, 192, 0.7)',
-                        'rgba(153, 102, 255, 0.7)', 'rgba(255, 159, 64, 0.7)',
-                        'rgba(199, 199, 199, 0.7)'
-                    ],
-                    borderColor: [
-                        'rgba(255, 99, 132, 1)', 'rgba(54, 162, 235, 1)',
-                        'rgba(255, 206, 86, 1)', 'rgba(75, 192, 192, 1)',
-                        'rgba(153, 102, 255, 1)', 'rgba(255, 159, 64, 1)',
-                        'rgba(159, 159, 159, 1)'
-                    ],
-                    borderWidth: 1,
-                    borderRadius: 4,
-                }]
-            },
-            options: {
-                responsive: true, maintainAspectRatio: false, indexAxis: 'y',
-                scales: { x: { beginAtZero: true, ticks: { precision: 0 } } },
-                plugins: { legend: { display: false } }
-            }
-        });
-    }
+        // Chart 1: Total Keterangan Kehadiran (Bar Chart) - Tidak ada perubahan
+        const totalKeteranganCtx = document.getElementById('totalKeteranganChart');
+        if (totalKeteranganCtx) {
+            new Chart(totalKeteranganCtx, {
+                type: 'bar',
+                data: {
+                    labels: @json($chartKeteranganLabels),
+                    datasets: [{
+                        label: 'Jumlah',
+                        data: @json($chartKeteranganData),
+                        backgroundColor: [
+                            'rgba(75, 192, 192, 0.7)', 'rgba(255, 159, 64, 0.7)',
+                            'rgba(255, 99, 132, 0.7)', 'rgba(54, 162, 235, 0.7)',
+                            'rgba(255, 206, 86, 0.7)', 'rgba(153, 102, 255, 0.7)',
+                            'rgba(199, 199, 199, 0.7)'
+                        ],
+                        borderWidth: 1,
+                        borderRadius: 4,
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y', scales: { x: { beginAtZero: true, ticks: { precision: 0 } } }, plugins: { legend: { display: false } } }
+            });
+        }
 
-    // Chart 2: Persentase Keterangan (Pie Chart)
-    const persentaseKeteranganCtx = document.getElementById('persentaseKeteranganChart');
-    if (persentaseKeteranganCtx && {{ $totalAttendanceRecordsForPie > 0 ? 'true' : 'false' }}) {
-        new Chart(persentaseKeteranganCtx, {
-            type: 'pie',
-            data: {
-                labels: @json($chartKeteranganLabels),
-                datasets: [{
-                    label: 'Persentase',
-                    data: @json($chartKeteranganData),
-                     backgroundColor: [ /* Same colors as bar chart or new set */
-                        'rgba(255, 99, 132, 0.8)', 'rgba(54, 162, 235, 0.8)',
-                        'rgba(255, 206, 86, 0.8)', 'rgba(75, 192, 192, 0.8)',
-                        'rgba(153, 102, 255, 0.8)', 'rgba(255, 159, 64, 0.8)',
-                        'rgba(199, 199, 199, 0.8)'
-                    ],
-                    hoverOffset: 4
-                }]
-            },
-            options: {
-                responsive: true, maintainAspectRatio: false,
-                plugins: {
-                    legend: { position: 'right', labels: { boxWidth:15, padding:10, font: {size: 10} } },
-                    tooltip: {
-                        callbacks: {
-                            label: function(context) {
-                                let label = context.label || '';
-                                if (label) { label += ': '; }
-                                if (context.parsed !== null) {
-                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                                    const percentage = total > 0 ? (context.parsed / total * 100).toFixed(1) + '%' : '0%';
-                                    label += context.parsed + ' (' + percentage + ')';
+        // Chart 2: Persentase Keterangan (Pie Chart) - Tidak ada perubahan
+        const persentaseKeteranganCtx = document.getElementById('persentaseKeteranganChart');
+        if (persentaseKeteranganCtx && {{ $totalAttendanceRecordsForPie > 0 ? 'true' : 'false' }}) {
+            new Chart(persentaseKeteranganCtx, {
+                type: 'pie',
+                data: {
+                    labels: @json($chartKeteranganLabels),
+                    datasets: [{
+                        label: 'Persentase',
+                        data: @json($chartKeteranganData),
+                        backgroundColor: [
+                            'rgba(75, 192, 192, 0.8)', 'rgba(255, 159, 64, 0.8)',
+                            'rgba(255, 99, 132, 0.8)', 'rgba(54, 162, 235, 0.8)',
+                            'rgba(255, 206, 86, 0.8)', 'rgba(153, 102, 255, 0.8)',
+                            'rgba(199, 199, 199, 0.8)'
+                        ],
+                        hoverOffset: 4
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'right', labels: { boxWidth: 15, padding: 10, font: { size: 10 } } },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.label || '';
+                                    if (label) { label += ': '; }
+                                    if (context.parsed !== null) {
+                                        const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                        const percentage = total > 0 ? (context.parsed / total * 100).toFixed(1) + '%' : '0%';
+                                        label += context.parsed + ' (' + percentage + ')';
+                                    }
+                                    return label;
                                 }
-                                return label;
                             }
                         }
                     }
                 }
-            }
-        });
-    } else if (persentaseKeteranganCtx) {
-        persentaseKeteranganCtx.getContext('2d').fillText('Tidak ada data untuk ditampilkan.', 10, 50);
-    }
+            });
+        } else if (persentaseKeteranganCtx) {
+            const ctx = persentaseKeteranganCtx.getContext('2d');
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('Tidak ada data untuk ditampilkan.', persentaseKeteranganCtx.width / 2, persentaseKeteranganCtx.height / 2);
+        }
 
-
-    // Chart 3: Rekap Hadir vs Tidak Hadir (Bar Chart)
-    const hadirTidakHadirCtx = document.getElementById('hadirTidakHadirChart');
-    if (hadirTidakHadirCtx) {
-        new Chart(hadirTidakHadirCtx, {
-            type: 'bar',
-            data: {
-                labels: @json($chartHadirTidakHadirLabels),
-                datasets: [{
-                    label: 'Jumlah Personel',
-                    data: @json($chartHadirTidakHadirData),
-                    backgroundColor: ['rgba(75, 192, 192, 0.7)', 'rgba(255, 99, 132, 0.7)'],
-                    borderColor: ['rgba(75, 192, 192, 1)', 'rgba(255, 99, 132, 1)'],
-                    borderWidth: 1,
-                    borderRadius: 4,
-                }]
-            },
-            options: {
-                responsive: true, maintainAspectRatio: false,
-                scales: { y: { beginAtZero: true, ticks: { precision: 0 } } },
-                plugins: { legend: { display: false } }
-            }
-        });
-        
-    }
-});
+        // CHART BARU: Tren Kehadiran Harian (Line Chart)
+        const trenHarianCtx = document.getElementById('trenHarianChart');
+        if (trenHarianCtx) {
+            new Chart(trenHarianCtx, {
+                type: 'line',
+                data: {
+                    labels: @json($chartTrenHarianLabels),
+                    datasets: [{
+                        label: 'Jumlah Personel Hadir',
+                        data: @json($chartTrenHarianData),
+                        fill: false,
+                        borderColor: 'rgb(75, 192, 192)',
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: { precision: 0 }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    }
+                }
+            });
+        }
+    });
 </script>
 @endpush

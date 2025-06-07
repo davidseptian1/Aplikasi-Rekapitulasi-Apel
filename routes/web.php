@@ -11,6 +11,7 @@ use App\Http\Controllers\Backend\RiwayatPiketController;
 use App\Http\Controllers\Backend\LaporanSubdisController;
 use App\Http\Controllers\Backend\Master\SubdisController;
 use App\Http\Controllers\Backend\Master\JabatanController;
+use App\Http\Controllers\Backend\Master\JamApelController;
 use App\Http\Controllers\Backend\Master\PangkatController;
 use App\Http\Controllers\Backend\GrafikKehadiranController;
 use App\Http\Controllers\Backend\LaporanPersonelController;
@@ -115,7 +116,11 @@ Route::middleware('auth')->group(function () {
 
     Route::prefix('riwayat')->name('riwayat.')->group(function () {
         Route::get('piket', [RiwayatPiketController::class, 'index'])->name('piket.index');
-        // Add other history/riwayat routes here if needed
+    });
+
+    Route::prefix('pengaturan')->name('jam-apel.')->group(function () {
+        Route::get('jam-apel', [JamApelController::class, 'index'])->name('index');
+        Route::put('jam-apel', [JamApelController::class, 'update'])->name('update');
     });
 
     Route::post('/logout', [AuthV2Controller::class, 'logout'])->name('logout');

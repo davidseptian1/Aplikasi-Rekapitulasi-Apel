@@ -7,36 +7,32 @@
             @endif
         </h5>
         <div class="row">
-            <div class="col-md-6 mb-3">
+            @foreach($apel_sessions_info_pokmin as $info)
+            <div class="col-md-6 mb-3 d-flex flex-column">
                 <div class="card apel-card shadow-sm h-100">
-                    <img src="{{ asset('assets/img/laptop-icon-green.png') }}" alt="Apel Pagi"
-                        style="width: 70px; height: 70px;">
-                    <h6>Apel Pagi</h6>
-                    <a href="{{ route('rekap-apel.anggota', ['id' => $pokminSubdis->id ?? 0, 'type' => 'pagi', 'date' => $today]) }}"
-                        class="btn btn-success {{ !$pokminSubdis ? 'disabled' : '' }}">
+                    <img src="{{ asset($info['type'] === 'pagi' ? 'assets/img/laptop-icon-green.png' : 'assets/img/laptop-icon-red.png') }}"
+                        alt="Apel {{ ucfirst($info['type']) }}" style="width: 70px; height: 70px;">
+                    <h6>Apel {{ ucfirst($info['type']) }}</h6>
+
+                    {{-- Tombol Rekap yang dinamis --}}
+                    <a href="{{ route('rekap-apel.anggota', ['id' => $info['subdis_id'] ?? 0, 'type' => $info['type'], 'date' => $today]) }}"
+                        class="btn {{ $info['is_active_time'] ? ($info['type'] === 'pagi' ? 'btn-success' : 'btn-danger') : 'btn-secondary disabled' }}"
+                        title="{{ !$pokminSubdis ? 'Anda belum ditugaskan' : $info['time_message'] }}">
                         <i class="fas fa-list-check me-1"></i> Rekap!
                     </a>
                 </div>
-            </div>
-            <div class="col-md-6 mb-3">
-                <div class="card apel-card shadow-sm h-100">
-                    <img src="{{ asset('assets/img/laptop-icon-red.png') }}" alt="Apel Sore"
-                        style="width: 70px; height: 70px;">
-                    <h6>Apel Sore</h6>
-                    <a href="{{ route('rekap-apel.anggota', ['id' => $pokminSubdis->id ?? 0, 'type' => 'sore', 'date' => $today]) }}"
-                        class="btn btn-danger {{ !$pokminSubdis ? 'disabled' : '' }}">
-                        <i class="fas fa-list-check me-1"></i> Rekap!
-                    </a>
+                {{-- Notifikasi waktu --}}
+                @if($pokminSubdis)
+                <div class="alert alert-light border text-center p-2 mt-2" role="alert" style="font-size: 0.8rem;">
+                    <i
+                        class="fas {{ $info['is_active_time'] ? 'fa-check-circle text-success' : 'fa-info-circle text-warning' }} me-1"></i>
+                    {{ $info['time_message'] }}
                 </div>
+                @endif
             </div>
+            @endforeach
         </div>
-        @if($pokminSubdis)
-        <div class="alert alert-light border" role="alert" style="font-size: 0.875rem;">
-            <i class="fas fa-info-circle me-1 text-primary"></i>
-            Rekap Apel Pagi dapat dilaksanakan, karena Jam menunjukkan Pukul {{ now()->format('H:i') }} WIB.
-            {{-- Consider making this message dynamic based on actual apel times --}}
-        </div>
-        @else
+        @if(!$pokminSubdis)
         <div class="alert alert-warning" role="alert" style="font-size: 0.875rem;">
             <i class="fas fa-exclamation-triangle me-1"></i> Anda belum ditugaskan sebagai penanggung jawab Subdis.
             Hubungi Admin.

@@ -5,43 +5,47 @@ namespace App\Http\Controllers\Backend;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\ApelAttendance;
-use App\Models\ApelSession;
 use App\Models\Subdis;
-use App\Models\User;
 use App\Models\Keterangan;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
+use Carbon\CarbonPeriod;
 
 class GrafikKehadiranController extends Controller
 {
     public function index(Request $request)
     {
-        $selectedDate = $request->input('date', now()->format('Y-m-d'));
-        $selectedSubdisId = $request->input('subdis_id'); // Can be null for "All Subdis"
+        // 1. Ambil input rentang tanggal, dengan default bulan ini
+        $startDate = $request->input('start_date', now()->startOfMonth()->format('Y-m-d'));
+        $endDate = $request->input('end_date', now()->endOfMonth()->format('Y-m-d'));
+        $selectedSubdisId = $request->input('subdis_id'); // Bisa null untuk "Semua Subdis"
 
+        // Validasi tanggal untuk keamanan
         try {
-            $filterDate = Carbon::parse($selectedDate)->format('Y-m-d');
+            $filterStartDate = Carbon::parse($startDate)->format('Y-m-d');
+            $filterEndDate = Carbon::parse($endDate)->format('Y-m-d');
         } catch (\Exception $e) {
-            $filterDate = now()->format('Y-m-d');
+            $filterStartDate = now()->startOfMonth()->format('Y-m-d');
+            $filterEndDate = now()->endOfMonth()->format('Y-m-d');
         }
 
         $subdisList = Subdis::orderBy('name')->get();
-        $masterKeterangans = Keterangan::orderBy('id')->get(); // For consistent chart label order
+        $masterKeterangans = Keterangan::orderBy('id')->get();
 
-        // --- Data for "Total Keterangan Kehadiran" (Bar Chart) & "Persentase Kehadiran" (Pie Chart) ---
+        // --- Data untuk "Total Keterangan Kehadiran" (Bar Chart) & "Persentase Kehadiran" (Pie Chart) ---
         $keteranganQuery = ApelAttendance::join('apel_sessions', 'apel_attendances.apel_session_id', '=', 'apel_sessions.id')
             ->join('keterangans', 'apel_attendances.keterangan_id', '=', 'keterangans.id')
-            ->whereDate('apel_sessions.date', $filterDate)
+            // Gunakan whereBetween untuk rentang tanggal
+            ->whereBetween('apel_sessions.date', [$filterStartDate, $filterEndDate])
             ->select('keterangans.name as keterangan_name', DB::raw('count(apel_attendances.id) as total'))
             ->groupBy('keterangans.name')
-            ->orderBy('keterangans.id'); // Consistent order
+            ->orderBy('keterangans.id');
 
         if ($selectedSubdisId) {
             $keteranganQuery->where('apel_sessions.subdis_id', $selectedSubdisId);
         }
         $keteranganCounts = $keteranganQuery->pluck('total', 'keterangan_name');
 
-        // Ensure all master keterangan types are present, even if count is 0
         $chartKeteranganLabels = [];
         $chartKeteranganData = [];
         $totalAttendanceRecords = 0;
@@ -52,41 +56,48 @@ class GrafikKehadiranController extends Controller
             $totalAttendanceRecords += $count;
         }
 
-        // --- Data for "Rekap Kehadiran Berdasarkan Hadir dan Tidak Hadir" (Bar Chart) ---
-        $hadirKeteranganId = Keterangan::where('name', 'LIKE', 'Hadir%')->first()?->id; // Assuming 'Hadir' is the primary presence status
-        $hadirCount = 0;
+        // --- DATA BARU: "Tren Kehadiran Harian" (Line Chart) ---
+        $hadirKeteranganId = Keterangan::where('name', 'LIKE', 'Hadir%')->first()?->id;
 
-        $hadirQuery = ApelAttendance::join('apel_sessions', 'apel_attendances.apel_session_id', '=', 'apel_sessions.id')
-            ->whereDate('apel_sessions.date', $filterDate);
+        $trenHarianQuery = ApelAttendance::join('apel_sessions', 'apel_attendances.apel_session_id', '=', 'apel_sessions.id')
+            ->whereBetween('apel_sessions.date', [$filterStartDate, $filterEndDate])
+            ->select(DB::raw('DATE(apel_sessions.date) as tanggal'), DB::raw('count(apel_attendances.id) as total_hadir'))
+            ->groupBy('tanggal')
+            ->orderBy('tanggal', 'asc');
+
         if ($hadirKeteranganId) {
-            $hadirQuery->where('apel_attendances.keterangan_id', $hadirKeteranganId);
-        } else {
-            // If no "Hadir" keterangan, this chart might not be meaningful or needs adjustment
-            Log::warning('Keterangan "Hadir" not found for Grafik Kehadiran.');
+            $trenHarianQuery->where('apel_attendances.keterangan_id', $hadirKeteranganId);
         }
-
         if ($selectedSubdisId) {
-            $hadirQuery->where('apel_sessions.subdis_id', $selectedSubdisId);
-            $totalPersonelInScope = User::where('role', 'personil')->where('subdis_id', $selectedSubdisId)->where('is_active', '1')->count();
-        } else {
-            $totalPersonelInScope = User::where('role', 'personil')->where('is_active', '1')->count();
+            $trenHarianQuery->where('apel_sessions.subdis_id', $selectedSubdisId);
         }
-        $hadirCount = $hadirQuery->count();
-        $tidakHadirCount = $totalPersonelInScope - $hadirCount;
-        if ($tidakHadirCount < 0) $tidakHadirCount = 0; // Cannot be negative
+        $trenHarianDataRaw = $trenHarianQuery->get()->keyBy('tanggal');
+
+        // Siapkan data untuk line chart, pastikan semua hari dalam rentang ada untuk menghindari garis putus
+        $period = CarbonPeriod::create($filterStartDate, $filterEndDate);
+        $chartTrenHarianLabels = [];
+        $chartTrenHarianData = [];
+
+        foreach ($period as $date) {
+            $dateString = $date->format('Y-m-d');
+            $chartTrenHarianLabels[] = $date->format('d M'); // Format label (e.g., 01 Jun)
+            $chartTrenHarianData[] = $trenHarianDataRaw->get($dateString, (object)['total_hadir' => 0])->total_hadir;
+        }
 
 
         $data = [
             'title' => 'Grafik Kehadiran',
             'pages' => 'Grafik Kehadiran',
-            'filterDate' => $filterDate,
+            'startDate' => $filterStartDate, // Kirim start date
+            'endDate' => $filterEndDate,     // Kirim end date
             'selectedSubdisId' => $selectedSubdisId,
             'subdisList' => $subdisList,
             'chartKeteranganLabels' => $chartKeteranganLabels,
             'chartKeteranganData' => $chartKeteranganData,
-            'totalAttendanceRecordsForPie' => $totalAttendanceRecords, // For pie chart percentages
-            'chartHadirTidakHadirLabels' => ['Hadir', 'Tidak Hadir'],
-            'chartHadirTidakHadirData' => [$hadirCount, $tidakHadirCount],
+            'totalAttendanceRecordsForPie' => $totalAttendanceRecords,
+            // Data untuk Chart Baru
+            'chartTrenHarianLabels' => $chartTrenHarianLabels,
+            'chartTrenHarianData' => $chartTrenHarianData,
         ];
 
         return view('backend.grafik_kehadiran.index', $data);

@@ -2,17 +2,18 @@
 
 namespace App\Http\Controllers\Backend;
 
-use App\Models\Subdis;
+use Carbon\Carbon;
 use App\Models\User;
 use App\Models\Piket;
+use App\Models\Subdis;
+use App\Models\JamApel;
 use App\Models\ApelSession;
-use App\Models\Keterangan; // Keep if used by other dashboard parts or future needs
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
-use Carbon\Carbon;
 use Illuminate\Support\Facades\DB; // For distinct roles if no Role model
 use Illuminate\Support\Str;      // For Str::slug if needed in controller
+use App\Models\Keterangan; // Keep if used by other dashboard parts or future needs
 
 class DashboardController extends Controller
 {
@@ -51,6 +52,11 @@ class DashboardController extends Controller
                 $pokminSubdis = Subdis::where('user_id', $currentUser->id)->first();
                 $data['pokminSubdis'] = $pokminSubdis;
                 $data['apel_sessions_info_pokmin'] = [];
+
+                // Ambil pengaturan jam apel
+                $jamApelSettings = JamApel::all()->keyBy('type');
+                $now = Carbon::now();
+
                 if ($pokminSubdis) {
                     $personilCount = User::where('subdis_id', $pokminSubdis->id)->where('role', 'personil')->count();
                     foreach (['pagi', 'sore'] as $type) {
@@ -65,6 +71,25 @@ class DashboardController extends Controller
                                 'attendances as done_count' => fn($q) => $q->where('status', 'done')
                             ])->first();
 
+                        // Logika Pengecekan Waktu
+                        $setting = $jamApelSettings->get($type);
+                        $isActiveTime = false;
+                        $timeMessage = "Jadwal belum diatur.";
+
+                        if ($setting) {
+                            $startTime = Carbon::parse($setting->start_time);
+                            $endTime = Carbon::parse($setting->end_time);
+
+                            if ($now->isBetween($startTime, $endTime)) {
+                                $isActiveTime = true;
+                                $timeMessage = "Waktu rekap sedang berlangsung hingga pukul " . $endTime->format('H:i') . " WIB.";
+                            } elseif ($now->isBefore($startTime)) {
+                                $timeMessage = "Rekap Apel " . ucfirst($type) . " baru bisa dilakukan mulai pukul " . $startTime->format('H:i') . " WIB.";
+                            } else { // $now->isAfter($endTime)
+                                $timeMessage = "Waktu rekap Apel " . ucfirst($type) . " telah berakhir pada pukul " . $endTime->format('H:i') . " WIB.";
+                            }
+                        }
+
                         $statusInfo = $this->determineSessionDisplayStatus($session, $personilCount);
                         $data['apel_sessions_info_pokmin'][] = [
                             'subdis_id' => $pokminSubdis->id,
@@ -75,6 +100,8 @@ class DashboardController extends Controller
                             'status_text' => $statusInfo['text'],
                             'status_badge' => $statusInfo['badge'],
                             'needs_verification_action' => $session && $statusInfo['text'] === 'Terkirim',
+                            'is_active_time' => $isActiveTime,
+                            'time_message' => $timeMessage,
                         ];
                     }
                 }

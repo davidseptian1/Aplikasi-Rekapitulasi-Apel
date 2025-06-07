@@ -2,20 +2,21 @@
 
 namespace App\Http\Controllers\Backend;
 
-use App\Models\Subdis;
+use Carbon\Carbon;
 use App\Models\User;
 use App\Models\Piket;
-use App\Models\ApelSession;
-use App\Models\ApelAttendance;
+use App\Models\Subdis;
+use App\Models\JamApel;
 use App\Models\Keterangan;
+use App\Models\ApelSession;
+use Illuminate\Support\Str;
 use Illuminate\Http\Request;
+use App\Models\ApelAttendance;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\DB;
-use Carbon\Carbon;
 use PDF; // Assuming Barryvdh DOMPDF
-use Illuminate\Support\Str;
 
 class RekapApelController extends Controller
 {
@@ -333,13 +334,53 @@ class RekapApelController extends Controller
         $subdis = Subdis::with('user')->findOrFail($id);
 
         if (!$this->checkSubdisAccess($currentUser, $subdis, true)) {
-            Log::warning('Unauthorized access attempt to showAnggota', [ /* ... */]);
+            Log::warning('Unauthorized access attempt to showAnggota',);
             return redirect()->route('dashboard.index')->with('error', 'Anda tidak memiliki akses ke halaman tersebut.');
         }
+
         $apelSession = ApelSession::firstOrCreate(
             ['date' => $date, 'type' => $type, 'subdis_id' => $id,],
             ['created_by' => $currentUser->id,]
         );
+
+        // ==============================================================
+        // START: PENAMBAHAN LOGIKA ATURAN WAKTU
+        // ==============================================================
+
+        // 1. Ambil pengaturan jam apel
+        $jamApelSetting = JamApel::where('type', $type)->first();
+        $now = Carbon::now();
+
+        // 2. Inisialisasi variabel. Secara default, non-pokmin selalu bisa rekap.
+        $pokminCanRekap = true;
+        $rekapTimeMessage = '';
+
+        // 3. Terapkan aturan HANYA untuk role 'pokmin'
+        if ($currentUser->role === 'pokmin') {
+            if ($jamApelSetting) {
+                $startTime = Carbon::parse($jamApelSetting->start_time);
+                $endTime = Carbon::parse($jamApelSetting->end_time);
+
+                if ($now->isBetween($startTime, $endTime)) {
+                    $pokminCanRekap = true;
+                    $rekapTimeMessage = "Waktu rekap sedang berlangsung hingga pukul " . $endTime->format('H:i') . " WIB.";
+                } elseif ($now->isBefore($startTime)) {
+                    $pokminCanRekap = false;
+                    $rekapTimeMessage = "Rekap Apel " . ucfirst($type) . " baru bisa dilakukan mulai pukul " . $startTime->format('H:i') . " WIB.";
+                } else { // $now->isAfter($endTime)
+                    $pokminCanRekap = false;
+                    $rekapTimeMessage = "Waktu rekap Apel " . ucfirst($type) . " telah berakhir pada pukul " . $endTime->format('H:i') . " WIB.";
+                }
+            } else {
+                // Jika pengaturan tidak ada, pokmin tidak bisa rekap
+                $pokminCanRekap = false;
+                $rekapTimeMessage = "Pengaturan jam untuk Apel " . ucfirst($type) . " belum diatur oleh Administrator.";
+            }
+        }
+        // ==============================================================
+        // END: PENAMBAHAN LOGIKA ATURAN WAKTU
+        // ==============================================================
+
         $anggotas = User::where('subdis_id', $id)
             ->where('role', 'personil')
             ->with([
@@ -347,7 +388,9 @@ class RekapApelController extends Controller
                 'biodata.jabatan',
                 'apelAttendances' => fn($q) => $q->where('apel_session_id', $apelSession->id)->with('keterangan')
             ])->orderBy('name')->get();
+
         $keterangans = Keterangan::orderBy('name')->get();
+
         $data = [
             'title' => 'Rekap Personel',
             'pages' => 'Rekap Personel',
@@ -357,7 +400,10 @@ class RekapApelController extends Controller
             'apelSession' => $apelSession,
             'date' => $date,
             'type' => $type,
+            'pokminCanRekap' => $pokminCanRekap,
+            'rekapTimeMessage' => $rekapTimeMessage,
         ];
+
         return view('backend.rekap_apel.show_anggota', $data);
     }
 

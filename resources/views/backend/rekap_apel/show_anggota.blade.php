@@ -212,6 +212,18 @@
 
         @include('backend.partials.alert')
 
+        {{-- ============================================================== --}}
+        {{-- START: TAMBAHKAN BLOK INI --}}
+        {{-- ============================================================== --}}
+        @if(Auth::user()->role === 'pokmin')
+        <div class="alert {{ $pokminCanRekap ? 'alert-success' : 'alert-warning' }} text-center">
+            <i class="fas {{ $pokminCanRekap ? 'fa-check-circle' : 'fa-info-circle' }} me-1"></i>
+            {{ $rekapTimeMessage }}
+        </div>
+        @endif
+        {{-- ============================================================== --}}
+        {{-- END: TAMBAHKAN BLOK INI --}}
+
         <div class="filter-container card card-body shadow-sm mb-4">
             <div class="row align-items-center">
                 <div class="col-md-4 mb-2 mb-md-0">
@@ -220,7 +232,7 @@
                         <input type="date" class="form-control" id="apel-date" value="{{ $date }}">
                     </div>
                 </div>
-                <div class="col-md-4 mb-2 mb-md-0">
+                {{-- <div class="col-md-4 mb-2 mb-md-0">
                     <div class="btn-group w-100" role="group">
                         <a href="{{ route('rekap-apel.anggota', ['id' => $subdis->id, 'type' => 'pagi', 'date' => $date]) }}"
                             class="btn btn-outline-primary {{ $type == 'pagi' ? 'active' : '' }}">
@@ -231,8 +243,8 @@
                             <i class="fas fa-moon me-1"></i> Apel Sore
                         </a>
                     </div>
-                </div>
-                <div class="col-md-4 text-md-end">
+                </div> --}}
+                <div class="col-md-8 text-md-end">
                     <button class="btn btn-primary" type="button" id="refresh-date-page" title="Refresh Data">
                         <i class="fas fa-sync-alt me-1"></i> Refresh
                     </button>
@@ -281,14 +293,24 @@
                             $allowPiketActions = Auth::user()->role === 'piket';
 
                             $isSessionDone = $overallStatus === 'done';
-                            $canPokminOrSuperadminManageDrafts = (($allowPokminActions && ($overallStatus === 'draft' ||
+                            $canPokminManageDraftsBasedOnTime = $allowPokminActions && $pokminCanRekap;
+
+                            $canManageDrafts = ($canPokminManageDraftsBasedOnTime || $allowSuperadminActions ||
+                            $allowPiketActions) && !$isSessionDone;
+
+                            $canPokminOrSuperadminManageDrafts = (($allowPokminActions && $pokminCanRekap &&
+                            ($overallStatus === 'draft' ||
                             $overallStatus === 'Belum Ada Data' || $overallStatus === 'submitted')) ||
                             $allowSuperadminActions) && !$isSessionDone;
+
                             $canPiketVerify = ($allowPiketActions || $allowSuperadminActions) && $submittedCount > 0 &&
                             !$isSessionDone && $overallStatus !== 'verified';
+
                             $hasAnyDrafts = $draftCount > 0 || ($recordedAttendancesCount < $totalAnggotaCount &&
                                 $totalAnggotaCount> 0);
+
                                 @endphp
+
                                 <span class="badge status-badge bg-secondary me-1">{{ $totalAnggotaCount }}
                                     Anggota</span>
                                 @if($draftCount > 0)<span class="badge status-badge bg-warning text-dark me-1"
@@ -382,18 +404,28 @@
                                     $currentKeterangan = $attendance ? $attendance->keterangan : null;
                                     $currentStatus = $attendance ? $attendance->status : 'belum_diisi';
 
+                                    // Logika untuk tombol "Ubah" individual
                                     $canEditKeteranganIndividually = false;
-                                    if ($isSessionDone) { $canEditKeteranganIndividually = false; }
-                                    elseif ($allowPiketActions || $allowSuperadminActions) {
-                                    $canEditKeteranganIndividually = true; }
-                                    elseif ($allowPokminActions && !in_array($currentStatus, ['verified', 'done',
-                                    'submitted'])) { $canEditKeteranganIndividually = true; }
+                                    $canEditKeteranganIndividually = false;
+                                    if ($isSessionDone) {
+                                    $canEditKeteranganIndividually = false;
+                                    } elseif ($allowPiketActions || $allowSuperadminActions) {
+                                    $canEditKeteranganIndividually = true;
+                                    } elseif ($allowPokminActions && $pokminCanRekap && !in_array($currentStatus,
+                                    ['verified', 'done','submitted'])) {
+                                    // POKMIN hanya bisa edit JIKA waktu rekap aktif DAN status belum final
+                                    $canEditKeteranganIndividually = true;
+                                    }
 
+                                    // Logika untuk checkbox
                                     $checkboxDisabled = $isSessionDone;
-                                    if ($allowPokminActions && in_array($currentStatus, ['submitted', 'verified',
-                                    'done'])) {
+                                    if ($allowPokminActions) {
+                                    if (!$pokminCanRekap || in_array($currentStatus, ['submitted', 'verified', 'done']))
+                                    {
                                     $checkboxDisabled = true;
                                     }
+                                    }
+
                                     @endphp
                                     <tr>
                                         @if($canPokminOrSuperadminManageDrafts && $totalAnggotaCount > 0 &&
@@ -490,7 +522,8 @@
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="keteranganModalLabel">Ubah Keterangan untuk <span id="modalUserName"></span></h5>
+                <h5 class="modal-title" id="keteranganModalLabel">Ubah Keterangan untuk <span id="modalUserName"></span>
+                </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
@@ -499,7 +532,8 @@
                     <input type="hidden" name="user_id" id="modalUserId">
                     <div class="form-group">
                         <label for="modalKeteranganId" class="form-label">Keterangan</label>
-                        <select class="form-select select2-modal" name="keterangan_id" id="modalKeteranganId" required style="width: 100%;">
+                        <select class="form-select select2-modal" name="keterangan_id" id="modalKeteranganId" required
+                            style="width: 100%;">
                             <option value="">Pilih Keterangan</option>
                             @foreach($keterangans as $ket)
                             <option value="{{ $ket->id }}">{{ $ket->name }}</option>
@@ -508,7 +542,8 @@
                     </div>
                     <div class="form-group mt-3" id="alasanContainer" style="display:none;">
                         <label for="alasanText" class="form-label">Alasan (Opsional)</label>
-                        <textarea name="alasan" id="alasanText" class="form-control" rows="3" placeholder="Masukkan alasan..."></textarea>
+                        <textarea name="alasan" id="alasanText" class="form-control" rows="3"
+                            placeholder="Masukkan alasan..."></textarea>
                     </div>
                 </form>
             </div>
@@ -521,7 +556,7 @@
 </div>
 
 <script>
-document.addEventListener('DOMContentLoaded', function () {
+    document.addEventListener('DOMContentLoaded', function () {
     const selectKeterangan = document.getElementById('modalKeteranganId');
     const alasanContainer = document.getElementById('alasanContainer');
 
