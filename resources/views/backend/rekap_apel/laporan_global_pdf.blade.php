@@ -200,125 +200,142 @@
             <p>
                 Apel {{ ucfirst($filterType) }}
                 @if($filterSubdisId)
-                <br>Subdis: {{ $selectedSubdisName }}
+                    <br>Subdis: {{ $selectedSubdisName }}
                 @else
-                <br>Semua Subdis
+                    <br>Semua Subdis
                 @endif
                 <br>Tanggal: {{ \Carbon\Carbon::parse($filterDate)->translatedFormat('l, d F Y') }}
             </p>
         </div>
 
         @if($subdisData->isEmpty())
-        <p style="text-align:center;">Tidak ada data rekap apel untuk filter yang dipilih.</p>
+            <p style="text-align:center;">Tidak ada data rekap apel untuk filter yang dipilih.</p>
         @else
-        @foreach($subdisData as $sub)
-        @if($filterSubdisId || $sub->personil_count > 0) {{-- Only show subdis if explicitly filtered or has members
-        --}}
-        <div class="subdis-section-pdf">
-            <h3 class="subdis-title-pdf">Subdis: {{ $sub->name }} (Total Personel: {{ $sub->personil_count }})</h3>
-            @php $apelSession = $sub->apelSessions->first(); @endphp
-            <table class="report-table">
-                <thead>
-                    <tr>
-                        <th class="no">No</th>
-                        <th>Nama Personel</th>
-                        <th>Pangkat</th>
-                        <th>Status Kehadiran</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @if($sub->users->count() > 0)
-                    @foreach($sub->users as $personel)
+            @foreach($subdisData as $sub)
+                <div class="subdis-section-pdf">
+                    <h3 class="subdis-title-pdf">Subdis: {{ $sub->name }} (Total Personel: {{ $sub->personil_count }})</h3>
+
                     @php
-                    $keteranganNamePdf = 'Belum Ada Sesi';
-                    if ($apelSession) {
-                    $attendanceRecordPdf = $apelSession->attendances->where('user_id', $personel->id)->first();
-                    if ($attendanceRecordPdf && $attendanceRecordPdf->keterangan) {
-                    $keteranganNamePdf = $attendanceRecordPdf->keterangan->name;
-                    } elseif($attendanceRecordPdf) {
-                    $keteranganNamePdf = '-';
-                    } else {
-                    $keteranganNamePdf = 'Belum Diisi';
-                    }
-                    }
+                        $apelSession = $sub->apelSessions->first();
+                        $summaryByKeterangan = [];
+
+                        foreach ($sub->users as $personel) {
+                            $keteranganName = 'Belum Ada Sesi';
+                            if ($apelSession) {
+                                $attendanceRecord = $apelSession->attendances->where('user_id', $personel->id)->first();
+                                if ($attendanceRecord && $attendanceRecord->keterangan) {
+                                    $keteranganName = $attendanceRecord->keterangan->name;
+                                } elseif($attendanceRecord) {
+                                    $keteranganName = '-';
+                                } else {
+                                    $keteranganName = 'Belum Diisi';
+                                }
+                            }
+                            $summaryByKeterangan[$keteranganName] = ($summaryByKeterangan[$keteranganName] ?? 0) + 1;
+                        }
+
+                        // Urutkan: Hadir dulu, lalu sisanya
+                        $orderedSummary = [];
+                        if (isset($summaryByKeterangan['Hadir'])) {
+                            $orderedSummary['Hadir'] = $summaryByKeterangan['Hadir'];
+                        }
+                        foreach ($summaryByKeterangan as $key => $value) {
+                            if ($key !== 'Hadir') {
+                                $orderedSummary[$key] = $value;
+                            }
+                        }
+                    @endphp
+
+                    <table class="report-table">
+                        <thead>
+                            <tr>
+                                <th>Nama Keterangan</th>
+                                <th>Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse($orderedSummary as $name => $count)
+                                <tr>
+                                    <td>{{ $name }}</td>
+                                    <td>{{ $count }}</td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="2" style="text-align:center; font-style:italic;">Tidak ada data personel dalam subdis ini.</td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            @endforeach
+
+            {{-- Global Summary Card --}}
+            <div class="summary-card-pdf">
+                <h4>Ringkasan Total Keterangan (@if($filterSubdisId) {{ $selectedSubdisName }} @else Semua Subdis @endif)</h4>
+                <table class="summary-grid-pdf">
+                    @php
+                        $orderedGrandTotals = [];
+                        if(isset($grandTotals['Hadir'])) {
+                            $orderedGrandTotals['Hadir'] = $grandTotals['Hadir'];
+                        }
+                        foreach($grandTotals as $name => $count) {
+                            if(strtolower($name) !== 'hadir') {
+                                $orderedGrandTotals[$name] = $count;
+                            }
+                        }
+                        $chunkedTotals = array_chunk($orderedGrandTotals, ceil(count($orderedGrandTotals) / 3), true);
                     @endphp
                     <tr>
-                        <td class="no">{{ $loop->iteration }}</td>
-                        <td>{{ $personel->name }}</td>
-                        <td class="pangkat">{{ $personel->biodata?->pangkat?->name ?? '-' }}</td>
-                        <td class="keterangan-value">{{ $keteranganNamePdf }}</td>
+                        @foreach($chunkedTotals as $chunk)
+                        <td valign="top">
+                            @foreach($chunk as $name => $count)
+                            <div class="summary-item">
+                                <span class="summary-name-pdf">{{ $name }}:</span>
+                                <span class="summary-count-pdf">{{ $count }}</span>
+                            </div>
+                            @endforeach
+                        </td>
+                        @endforeach
+                        @for ($i = count($chunkedTotals); $i < 3; $i++)
+                            <td>&nbsp;</td>
+                        @endfor
                     </tr>
-                    @endforeach
-                    @else
+                </table>
+                <div class="summary-totals-separator-pdf"></div>
+                <table class="summary-grid-pdf" style="margin-top:5px;">
                     <tr>
-                        <td colspan="4" style="text-align:center; font-style:italic;">Tidak ada personil di subdis ini.
+                        <td>
+                            <div class="summary-item fw-bold">
+                                <span class="summary-name-pdf">Jumlah (Direkap):</span>
+                                <span class="summary-count-pdf">{{ $totalDirekapKeseluruhan }}</span>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="summary-item">
+                                <span class="summary-name-pdf">Kurang (Belum Direkap):</span>
+                                <span class="summary-count-pdf">{{ $totalKurangKeseluruhan }}</span>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="summary-item">
+                                <span class="summary-name-pdf">Total Personel Terdata:</span>
+                                <span class="summary-count-pdf">{{ $totalPersonilKeseluruhan }}</span>
+                            </div>
                         </td>
                     </tr>
-                    @endif
-                </tbody>
-            </table>
-        </div>
+                    <tr>
+                        <td colspan="3" style="text-align:left; font-weight:bold; padding-top:5px;">
+                            <div class="summary-item">
+                                <span class="summary-name-pdf">Hadir Aktual:</span>
+                                <span class="summary-count-pdf">{{ $grandTotals['Hadir'] ?? 0 }}</span>
+                            </div>
+                        </td>
+                    </tr>
+                </table>
+            </div>
         @endif
-        @endforeach
 
-        {{-- Global Summary Card --}}
-        <div class="summary-card-pdf">
-            <h4>Ringkasan Total Keterangan (@if($filterSubdisId) {{ $selectedSubdisName }} @else Semua Subdis @endif)
-            </h4>
-            <table class="summary-grid-pdf">
-                @php
-                $orderedGrandTotals = [];
-                // Ensure "Hadir" comes first if exists
-                if(isset($grandTotals['Hadir'])) {
-                $orderedGrandTotals['Hadir'] = $grandTotals['Hadir'];
-                }
-                foreach($grandTotals as $name => $count) {
-                if(strtolower($name) !== 'hadir') {
-                $orderedGrandTotals[$name] = $count;
-                }
-                }
-                $chunkedTotals = array_chunk($orderedGrandTotals, ceil(count($orderedGrandTotals) / 3), true);
-                @endphp
-                <tr>
-                    @foreach($chunkedTotals as $chunk)
-                    <td valign="top">
-                        @foreach($chunk as $name => $count)
-                        <div class="summary-item">
-                            <span class="summary-name-pdf">{{ $name }}:</span>
-                            <span class="summary-count-pdf">{{ $count }}</span>
-                        </div>
-                        @endforeach
-                    </td>
-                    @endforeach
-                    @for ($i = count($chunkedTotals); $i < 3; $i++) <td>&nbsp;</td>
-                        @endfor
-                </tr>
-            </table>
-            <div class="summary-totals-separator-pdf"></div>
-            <table class="summary-grid-pdf" style="margin-top:5px;">
-                <tr>
-                    <td>
-                        <div class="summary-item fw-bold"><span class="summary-name-pdf">Jumlah (Direkap):</span> <span
-                                class="summary-count-pdf">{{ $totalDirekapKeseluruhan }}</span></div>
-                    </td>
-                    <td>
-                        <div class="summary-item"><span class="summary-name-pdf">Kurang (Belum Direkap):</span> <span
-                                class="summary-count-pdf">{{ $totalKurangKeseluruhan }}</span></div>
-                    </td>
-                    <td>
-                        <div class="summary-item"><span class="summary-name-pdf">Total Personel Terdata:</span> <span
-                                class="summary-count-pdf">{{ $totalPersonilKeseluruhan }}</span></div>
-                    </td>
-                </tr>
-                <tr>
-                    <td colspan="3" style="text-align:left; font-weight:bold; padding-top:5px;">
-                        <div class="summary-item"><span class="summary-name-pdf">Hadir Aktual:</span> <span
-                                class="summary-count-pdf">{{ $grandTotals['Hadir'] ?? 0 }}</span></div>
-                    </td>
-                </tr>
-            </table>
-        </div>
-
+        {{-- Informasi Piket --}}
         @if($piketHariIni)
         <div class="piket-info-pdf">
             <h4>Petugas Piket Tanggal {{ \Carbon\Carbon::parse($filterDate)->translatedFormat('d F Y') }}</h4>
@@ -329,13 +346,15 @@
             </ul>
         </div>
         @endif
-        @endif
 
+        {{-- Footer --}}
         <div class="footer-pdf">
-            <div class="left">Laporan Global Rekap Apel - {{ \Carbon\Carbon::parse($filterDate)->translatedFormat('d M
-                Y') }} - {{ ucfirst($filterType) }}</div>
-            <div class="right">Dicetak pada: {{ $timestampCetak }} oleh: {{ $dicetakOleh }} - <span
-                    class="page-number"></span></div>
+            <div class="left">
+                Laporan Global Rekap Apel - {{ \Carbon\Carbon::parse($filterDate)->translatedFormat('d M Y') }} - {{ ucfirst($filterType) }}
+            </div>
+            <div class="right">
+                Dicetak pada: {{ $timestampCetak }} oleh: {{ $dicetakOleh }} - <span class="page-number"></span>
+            </div>
         </div>
     </div>
 </body>
