@@ -24,7 +24,7 @@
                         <h5 class="card-title">Atur Jadwal Rekap Apel</h5>
                     </div>
                     <div class="card-body">
-                        <form action="{{ route('jam-apel.update') }}" method="POST">
+                         <form action="{{ route('jam-apel.update') }}" method="POST">
                             @csrf
                             @method('PUT')
 

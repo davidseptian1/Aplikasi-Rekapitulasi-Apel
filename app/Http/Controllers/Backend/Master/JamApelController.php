@@ -57,27 +57,35 @@ class JamApelController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, string $id)
-    {
-        $request->validate([
-            'pagi_start_time' => 'required|date_format:H:i',
-            'pagi_end_time' => 'required|date_format:H:i|after:pagi_start_time',
-            'sore_start_time' => 'required|date_format:H:i',
-            'sore_end_time' => 'required|date_format:H:i|after:sore_start_time',
-        ]);
+    public function update(Request $request)
+{
+    $request->validate([
+        'pagi_start_time' => 'required|date_format:H:i',
+        'pagi_end_time' => 'required|date_format:H:i|after:pagi_start_time',
+        'sore_start_time' => 'required|date_format:H:i',
+        'sore_end_time' => 'required|date_format:H:i|after:sore_start_time',
+    ]);
 
-        JamApel::where('type', 'pagi')->update([
+    JamApel::updateOrCreate(
+        ['type' => 'pagi'],
+        [
             'start_time' => $request->pagi_start_time,
             'end_time' => $request->pagi_end_time,
-        ]);
+        ]
+    );
 
-        JamApel::where('type', 'sore')->update([
+    JamApel::updateOrCreate(
+        ['type' => 'sore'],
+        [
             'start_time' => $request->sore_start_time,
             'end_time' => $request->sore_end_time,
-        ]);
+        ]
+    );
 
-        return redirect()->route('jam-apel.index')->with('success', 'Pengaturan jam apel berhasil diperbarui.');
-    }
+    return redirect()->route('jam-apel.index')->with('success', 'Pengaturan jam apel berhasil diperbarui.');
+}
+
+
 
     /**
      * Remove the specified resource from storage.
