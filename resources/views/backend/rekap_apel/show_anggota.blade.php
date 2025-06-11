@@ -392,9 +392,9 @@
                                         <th>Nama</th>
                                         <th>Pangkat</th>
                                         <th>Jabatan</th>
-                                        <th>Ubah Status Kehadiran</th>
+                                        <th>Status Kehadiran</th>
                                         <th>Status</th>
-                                        @if(!$isSessionDone)<th class="text-center">Ubah Status Kehadiran</th>@endif
+                                        @if(!$isSessionDone)<th class="text-center">Aksi</th>@endif
                                     </tr>
                                 </thead>
                                 <tbody>
