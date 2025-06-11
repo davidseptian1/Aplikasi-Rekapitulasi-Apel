@@ -26651,4 +26651,27 @@ td .invoice-detail i {
   }
 }
 
+/* Tampilan penuh */
+.profile-box {
+    background: white;
+    border-radius: 20px;
+    padding: 15px;
+    width: 100px;
+    height: 100px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+}
+
+.profile-img {
+    width: 60px;
+    height: 60px;
+    object-fit: cover;
+    border-radius: 50%;
+    transition: all 0.3s ease;
+}
+
+
 /*# sourceMappingURL=style.css.map */

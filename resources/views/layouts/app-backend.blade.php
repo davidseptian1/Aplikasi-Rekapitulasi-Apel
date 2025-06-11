@@ -156,6 +156,11 @@
             <div class="sidebar-inner slimscroll">
                 <div id="sidebar-menu" class="sidebar-menu">
                     <ul class="sidebar-vertical">
+                        <div class="profile-wrapper text-center py-4">
+                                <div class="profile-box mx-auto">
+                                    <img src="{{ Auth::user()->photo_url }}" alt="User Photo" class="profile-img">
+                                </div>
+                            </div>
                         <li>
                             <a class="{{ request()->routeIs(['dashboard.*']) ? 'active' : '' }}"
                                 href="{{ route('dashboard.index') }}">
