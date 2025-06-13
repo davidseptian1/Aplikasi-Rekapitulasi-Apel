@@ -9,87 +9,6 @@
         margin-bottom: 20px;
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
     }
-
-    .keterangan-card {
-        background-color: #fff;
-        border: 1px solid #e9ecef;
-        border-radius: 8px;
-        margin-bottom: 20px;
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.03);
-    }
-
-    .keterangan-card-header {
-        background-color: #f8f9fa;
-        padding: 0.75rem 1.25rem;
-        border-bottom: 1px solid #e9ecef;
-        font-weight: 600;
-        font-size: 1.05rem;
-        color: #343a40;
-    }
-
-    .keterangan-card-body {
-        padding: 1.25rem;
-    }
-
-    .keterangan-card-body ul {
-        list-style: none;
-        padding-left: 0;
-        margin-bottom: 0;
-    }
-
-    .keterangan-card-body ul li {
-        padding: 0.4rem 0;
-        font-size: 0.9rem;
-        border-bottom: 1px dotted #eee;
-    }
-
-    .keterangan-card-body ul li:last-child {
-        border-bottom: none;
-    }
-
-    .no-data-message {
-        text-align: center;
-        padding: 20px;
-        color: #6c757d;
-    }
-
-    .btn-cetak-pdf-keterangan {
-        font-weight: 500;
-        background-color: #28a745;
-        border-color: #28a745;
-        color: white;
-    }
-
-    .btn-cetak-pdf-keterangan:hover {
-        background-color: #218838;
-        border-color: #1e7e34;
-    }
-.keterangan-card-body {
-        padding: 1rem;
-    }
-
-    .keterangan-card-body ul {
-        max-height: 16rem;   /* Tinggi maksimum 8 baris */
-        min-height: 16rem;   /* Tinggi minimum agar card tetap tinggi */
-        overflow-y: auto;    /* Scroll jika lebih dari 8 */
-        padding-left: 1rem;
-        margin: 0;
-        list-style-type: disc;
-    }
-
-    .keterangan-card-body ul li {
-        line-height: 1.5rem;
-        margin-bottom: 0.5rem;
-    }
-
-    .no-data-message {
-        min-height: 16rem; /* Agar card kosong tetap tinggi */
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        text-align: center;
-        margin: 0;
-    }
 </style>
 @endpush
 
@@ -111,14 +30,20 @@
             <form method="GET" action="{{ route('laporan.personel.keterangan') }}">
                 <div class="row g-2 align-items-end">
                     <div class="col-md-3">
-                        <label for="date_filter_lap_ket" class="form-label">Pilih Tanggal</label>
-                        <input type="date" class="form-control form-control-sm" id="date_filter_lap_ket" name="date"
+                        <label for="date_filter" class="form-label">Pilih Tanggal</label>
+                        <input type="date" class="form-control form-control-sm" id="date_filter" name="date"
                             value="{{ $filterDate }}">
                     </div>
+                    <div class="col-md-2">
+                        <label for="type_filter" class="form-label">Jenis Apel</label>
+                        <select class="form-select form-select-sm" name="type" id="type_filter">
+                            <option value="pagi" {{ $selectedType=='pagi' ? 'selected' : '' }}>Pagi</option>
+                            <option value="sore" {{ $selectedType=='sore' ? 'selected' : '' }}>Sore</option>
+                        </select>
+                    </div>
                     <div class="col-md-3">
-                        <label for="subdis_filter_lap_ket" class="form-label">Pilih Subdis</label>
-                        <select class="form-select form-select-sm select2-filter" id="subdis_filter_lap_ket"
-                            name="subdis_id">
+                        <label for="subdis_filter" class="form-label">Pilih Subdis</label>
+                        <select class="form-select form-select-sm select2-filter" id="subdis_filter" name="subdis_id">
                             <option value="">-- Semua Subdis --</option>
                             @foreach($subdisList as $subdis)
                             <option value="{{ $subdis->id }}" {{ $selectedSubdisId==$subdis->id ? 'selected' : '' }}>
@@ -127,11 +52,11 @@
                             @endforeach
                         </select>
                     </div>
-                    <div class="col-md-3">
-                        <label for="keterangan_filter_lap_ket" class="form-label">Pilih Keterangan</label>
-                        <select class="form-select form-select-sm select2-filter" id="keterangan_filter_lap_ket"
+                    <div class="col-md-2">
+                        <label for="keterangan_filter" class="form-label">Keterangan</label>
+                        <select class="form-select form-select-sm select2-filter" id="keterangan_filter"
                             name="keterangan_id">
-                            <option value="">-- Semua Keterangan --</option>
+                            <option value="">-- Semua --</option>
                             @foreach($masterKeterangans as $keterangan)
                             <option value="{{ $keterangan->id }}" {{ $selectedKeteranganId==$keterangan->id ? 'selected'
                                 : '' }}>
@@ -146,58 +71,46 @@
                         </button>
                     </div>
                     <div class="col-md-auto">
-                        <a href="{{ route('laporan.personel.keterangan.pdf', ['date' => $filterDate, 'subdis_id' => $selectedSubdisId, 'keterangan_id' => $selectedKeteranganId]) }}"
-                            class="btn btn-sm btn-cetak-pdf-keterangan w-100" target="_blank">
-                            <i class="fas fa-file-pdf me-1"></i> Cetak PDF
+                        <a href="{{ route('laporan.personel.keterangan.pdf', request()->query()) }}"
+                            class="btn btn-sm btn-success w-100" target="_blank">
+                            <i class="fas fa-file-pdf me-1"></i> PDF
                         </a>
                     </div>
                 </div>
             </form>
         </div>
 
-        <div class="row">
-    @if($groupedAttendances->isEmpty())
-    <div class="col-12">
-        <div class="alert alert-info text-center">
-            Tidak ada data keterangan ditemukan untuk filter yang dipilih.
-        </div>
-    </div>
-    @else
-    @foreach($groupedAttendances as $keteranganName => $attendances)
-    <div class="col-md-6 col-lg-4">
-        <div class="card keterangan-card">
-            <div class="keterangan-card-header">
-                {{ $keteranganName }} ({{ $attendances->count() }})
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover table-center mb-0 datatable">
+                        <thead>
+                            <tr>
+                                <th>Nama Personel</th>
+                                <th>Keterangan Kehadiran</th>
+                                <th>Jenis Apel</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse ($allAttendances as $attendance)
+                            <tr>
+                                <td>{{ $attendance->user_name }}</td>
+                                <td>
+                                    <span class="badge bg-info">{{ $attendance->keterangan_name }}</span>
+                                </td>
+                                <td>{{ ucfirst($attendance->apel_type) }}</td>
+                            </tr>
+                            @empty
+                            <tr>
+                                <td colspan="3" class="text-center">Tidak ada data ditemukan untuk filter yang dipilih.
+                                </td>
+                            </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
             </div>
-            <div class="keterangan-card-body">
-                @if($attendances->count() > 0)
-                <ul>
-                    @foreach($attendances as $att)
-                    <li>
-                        {{ $att->user_name }}
-                        @if($att->user_nrp)
-                        <small class="text-muted">(NRP: {{ $att->user_nrp }})</small>
-                        @endif
-                    </li>
-                    @endforeach
-                </ul>
-                @else
-                <p class="no-data-message">Tidak ada personel dengan keterangan ini.</p>
-                @endif
-            </div>
         </div>
-    </div>
-    @endforeach
-    @endif
-</div>
-
-        @if(!$groupedAttendances->isEmpty() && $totalRecords > 10)
-        <div class="mt-3 text-center">
-            <small class="text-muted">Menampilkan {{ $totalRecords }} entri. Pertimbangkan filter untuk hasil lebih
-                spesifik.</small>
-        </div>
-        @endif
-
 
     </div>
 </div>
@@ -206,14 +119,11 @@
 @push('scripts')
 <script>
     $(document).ready(function() {
-    // Initialize Select2 for filters
-    if ($('.select2-filter').length) {
         $('.select2-filter').select2({
             width: '100%',
-            allowClear: true, // Allows clearing the selection for optional filters
-            placeholder: $(this).data('placeholder') || '-- Pilih --'
+            allowClear: true,
+            placeholder: '-- Pilih --'
         });
-    }
-});
+    });
 </script>
 @endpush

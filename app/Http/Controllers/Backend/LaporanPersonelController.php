@@ -5,9 +5,7 @@ namespace App\Http\Controllers\Backend;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\ApelAttendance;
-use App\Models\ApelSession;
 use App\Models\Subdis;
-use App\Models\User;
 use App\Models\Keterangan;
 use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
@@ -18,9 +16,11 @@ class LaporanPersonelController extends Controller
 {
     public function laporanKeterangan(Request $request)
     {
+        // Add the 'type' filter, defaulting to 'pagi'
         $selectedDate = $request->input('date', now()->format('Y-m-d'));
-        $selectedSubdisId = $request->input('subdis_id'); // Optional
-        $selectedKeteranganId = $request->input('keterangan_id'); // Optional
+        $selectedType = $request->input('type', 'pagi'); // New filter
+        $selectedSubdisId = $request->input('subdis_id');
+        $selectedKeteranganId = $request->input('keterangan_id');
 
         try {
             $filterDate = Carbon::parse($selectedDate)->format('Y-m-d');
@@ -36,7 +36,8 @@ class LaporanPersonelController extends Controller
             ->join('users', 'apel_attendances.user_id', '=', 'users.id')
             ->join('keterangans', 'apel_attendances.keterangan_id', '=', 'keterangans.id')
             ->whereDate('apel_sessions.date', $filterDate)
-            ->with(['user.biodata.pangkat', 'keterangan', 'session.subdis']); // session.subdis for subdis name if needed
+            ->where('apel_sessions.type', $selectedType) // Apply the new type filter
+            ->with(['user.biodata.pangkat', 'keterangan', 'session.subdis']);
 
         if ($selectedSubdisId) {
             $attendancesQuery->where('apel_sessions.subdis_id', $selectedSubdisId);
@@ -46,43 +47,26 @@ class LaporanPersonelController extends Controller
             $attendancesQuery->where('apel_attendances.keterangan_id', $selectedKeteranganId);
         }
 
-        // Select fields needed for the report
-        $attendancesQuery->select(
+        // Get all matching records for the table display
+        $allAttendances = $attendancesQuery->select(
             'users.name as user_name',
-            'users.nrp as user_nrp', // Assuming NRP is relevant
+            'users.nrp as user_nrp',
             'keterangans.name as keterangan_name',
-            'keterangans.id as keterangan_id', // For grouping
-            // Add other fields if needed, e.g., from biodata, session
-            'apel_sessions.type as apel_type',
-            'apel_sessions.subdis_id as subdis_id' // For grouping by subdis if needed later
-        );
-
-        // Get all attendances and group them in PHP.
-        // For large datasets, consider database grouping if performance becomes an issue.
-        $allAttendances = $attendancesQuery->orderBy('keterangans.name')->orderBy('users.name')->get();
-
-        // Group by keterangan_name for card display
-        $groupedAttendances = $allAttendances->groupBy('keterangan_name');
-
-        // If a specific keterangan is filtered, only pass that group
-        if ($selectedKeteranganId) {
-            $filteredKeterangan = $masterKeterangans->find($selectedKeteranganId);
-            if ($filteredKeterangan) {
-                $groupedAttendances = $groupedAttendances->only($filteredKeterangan->name);
-            }
-        }
-
+            'apel_sessions.type as apel_type'
+        )
+            ->orderBy('users.name')
+            ->get();
 
         $data = [
             'title' => 'Laporan Keterangan Personel',
             'pages' => 'Laporan Keterangan',
             'filterDate' => $filterDate,
+            'selectedType' => $selectedType, // Pass type to the view
             'selectedSubdisId' => $selectedSubdisId,
             'selectedKeteranganId' => $selectedKeteranganId,
             'subdisList' => $subdisList,
-            'masterKeterangans' => $masterKeterangans, // For filter dropdown
-            'groupedAttendances' => $groupedAttendances, // Data grouped by keterangan_name
-            'totalRecords' => $allAttendances->count() // For pagination info, though pagination is complex for this card layout
+            'masterKeterangans' => $masterKeterangans,
+            'allAttendances' => $allAttendances, // Pass the flat collection for the table
         ];
 
         return view('backend.laporan_personel.keterangan', $data);
@@ -92,24 +76,21 @@ class LaporanPersonelController extends Controller
     {
         $request->validate([
             'date' => 'required|date_format:Y-m-d',
+            'type' => 'required|in:pagi,sore', // Validate the new type filter
             'subdis_id' => 'nullable|exists:subdis,id',
             'keterangan_id' => 'nullable|exists:keterangans,id',
         ]);
 
         $filterDate = $request->date;
+        $filterType = $request->type; // Get type for PDF
         $selectedSubdisId = $request->subdis_id;
         $selectedKeteranganId = $request->keterangan_id;
 
-        $subdisList = Subdis::orderBy('name')->get(); // For displaying selected subdis name
-        $masterKeterangans = Keterangan::orderBy('name')->get();
-
         $attendancesQuery = ApelAttendance::join('apel_sessions', 'apel_attendances.apel_session_id', '=', 'apel_sessions.id')
             ->join('users', 'apel_attendances.user_id', '=', 'users.id')
-            ->leftJoin('biodatas', 'users.id', '=', 'biodatas.user_id') // Use leftJoin if biodata/pangkat might be null
-            ->leftJoin('pangkats', 'biodatas.pangkat_id', '=', 'pangkats.id')
             ->join('keterangans', 'apel_attendances.keterangan_id', '=', 'keterangans.id')
             ->whereDate('apel_sessions.date', $filterDate)
-            ->with(['session.subdis']);
+            ->where('apel_sessions.type', $filterType); // Apply type filter to PDF query
 
         if ($selectedSubdisId) {
             $attendancesQuery->where('apel_sessions.subdis_id', $selectedSubdisId);
@@ -118,33 +99,31 @@ class LaporanPersonelController extends Controller
             $attendancesQuery->where('apel_attendances.keterangan_id', $selectedKeteranganId);
         }
 
-        $attendancesQuery->select(
+        $allAttendances = $attendancesQuery->select(
             'users.name as user_name',
-            'pangkats.name as pangkat_name', // Get pangkat name
+            'users.nrp as user_nrp',
             'keterangans.name as keterangan_name',
-            'keterangans.id as keterangan_id',
-            'apel_sessions.type as apel_type',
-            'apel_sessions.subdis_id'
-        );
+            'apel_sessions.type as apel_type'
+        )
+            ->orderBy('users.name')
+            ->get();
 
-        $allAttendances = $attendancesQuery->orderBy('keterangans.name')->orderBy('users.name')->get();
-        $groupedAttendances = $allAttendances->groupBy('keterangan_name');
-
-        $currentSubdis = $selectedSubdisId ? $subdisList->find($selectedSubdisId) : null;
-        $currentKeterangan = $selectedKeteranganId ? $masterKeterangans->find($selectedKeteranganId) : null;
+        $currentSubdis = $selectedSubdisId ? Subdis::find($selectedSubdisId) : null;
+        $currentKeterangan = $selectedKeteranganId ? Keterangan::find($selectedKeteranganId) : null;
 
         $data = [
             'filterDate' => $filterDate,
-            'groupedAttendances' => $groupedAttendances,
-            'masterKeterangans' => $masterKeterangans, // To list all keterangan types even if no data
+            'filterType' => $filterType, // Pass type to PDF view
+            'allAttendances' => $allAttendances,
             'currentSubdisName' => $currentSubdis ? $currentSubdis->name : 'Semua Subdis',
             'currentKeteranganName' => $currentKeterangan ? $currentKeterangan->name : 'Semua Keterangan',
             'reportDate' => Carbon::now()->translatedFormat('d F Y, H:i:s'),
         ];
 
         $pdf = PDF::loadView('backend.laporan_personel.keterangan_pdf', $data);
-        $pdf->setPaper('a4', 'portrait'); // Or landscape if needed
+        $pdf->setPaper('a4', 'portrait');
         $fileName = 'laporan-keterangan-' . $filterDate . '-' . Str::slug($data['currentSubdisName']) . '.pdf';
+
         return $pdf->download($fileName);
     }
 }

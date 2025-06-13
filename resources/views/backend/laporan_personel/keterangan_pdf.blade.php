@@ -37,57 +37,31 @@
             color: #555;
         }
 
-        .filter-info {
-            font-size: 10px;
-            margin-bottom: 15px;
-            text-align: center;
-        }
-
-        .keterangan-section {
-            margin-bottom: 15px;
-        }
-
-        .keterangan-title {
-            font-size: 12px;
-            font-weight: bold;
-            background-color: #f0f2f5;
-            padding: 6px;
-            border: 1px solid #dee2e6;
-            border-bottom: none;
-            margin-bottom: 0;
-        }
-
-        table.personel-list {
+        .main-table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 10px;
-            /* Space after each group's table */
+            margin-bottom: 15px;
         }
 
-        table.personel-list th,
-        table.personel-list td {
+        .main-table th,
+        .main-table td {
             border: 1px solid #ccc;
-            padding: 5px 7px;
+            padding: 6px 8px;
             text-align: left;
         }
 
-        table.personel-list th {
-            background-color: #f9f9f9;
-            font-weight: normal;
+        .main-table th {
+            background-color: #f0f2f5;
+            font-weight: bold;
             text-align: center;
         }
 
-        table.personel-list td.no {
+        .main-table td.no {
             width: 5%;
             text-align: center;
         }
 
-        table.personel-list td.nama {
-            width: 55%;
-        }
-
-        table.personel-list td.pangkat {
-            width: 40%;
+        .main-table td.jenis-apel {
             text-align: center;
         }
 
@@ -95,7 +69,7 @@
             text-align: center;
             font-style: italic;
             color: #777;
-            padding: 10px;
+            padding: 20px;
             border: 1px solid #ccc;
         }
 
@@ -107,10 +81,6 @@
             border-top: 1px solid #eee;
             padding-top: 8px;
         }
-
-        .page-break {
-            page-break-after: always;
-        }
     </style>
 </head>
 
@@ -119,51 +89,35 @@
         <div class="header">
             <h1>Laporan Keterangan Personel</h1>
             <p>
-                Subdis: {{ $currentSubdisName }} <br>
-                Keterangan: {{ $currentKeteranganName }} <br>
-                Untuk Tanggal: {{ \Carbon\Carbon::parse($filterDate)->translatedFormat('l, d F Y') }}
+                Tanggal: {{ \Carbon\Carbon::parse($filterDate)->translatedFormat('l, d F Y') }} <br>
+                Jenis Apel: {{ ucfirst($filterType) }} <br>
+                Subdis: {{ $currentSubdisName }} | Keterangan: {{ $currentKeteranganName }}
             </p>
         </div>
 
-        @if($groupedAttendances->isEmpty())
-        <p class="no-data">Tidak ada data keterangan ditemukan untuk filter yang dipilih.</p>
+        @if($allAttendances->isEmpty())
+        <p class="no-data">Tidak ada data ditemukan untuk filter yang dipilih.</p>
         @else
-        @foreach($groupedAttendances as $keteranganNameGroup => $attendancesInGroup)
-        <div class="keterangan-section">
-            <h4 class="keterangan-title">{{ $keteranganNameGroup }} (Total: {{ $attendancesInGroup->count() }})</h4>
-            @if($attendancesInGroup->count() > 0)
-            <table class="personel-list">
-                <thead>
-                    <tr>
-                        <th class="no">No</th>
-                        <th class="nama">Nama Personel</th>
-                        <th class="pangkat">Pangkat</th>
-                        {{-- <th class="apel-type">Apel</th> --}} {{-- Uncomment if you need Apel Type (Pagi/Sore) per
-                        entry --}}
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach($attendancesInGroup as $index => $att)
-                    <tr>
-                        <td class="no">{{ $index + 1 }}</td>
-                        <td class="nama">
-                            {{ $att->user_name }}
-                            @if($att->user_nrp) <small style="color:#555;">(NRP: {{ $att->user_nrp }})</small> @endif
-                        </td>
-                        <td class="pangkat">{{ $att->pangkat_name ?? '-' }}</td>
-                        {{-- <td class="apel-type">{{ ucfirst($att->apel_type) }}</td> --}}
-                    </tr>
-                    @endforeach
-                </tbody>
-            </table>
-            @else
-            <p class="no-data" style="border-top:none; padding:5px;">Tidak ada personel dengan keterangan ini.</p>
-            @endif
-        </div>
-        @if(!$loop->last)
-        {{-- <div class="page-break"></div> --}} {{-- Optional: page break after each keterangan group --}}
-        @endif
-        @endforeach
+        <table class="main-table">
+            <thead>
+                <tr>
+                    <th class="no">No</th>
+                    <th>Nama Personel</th>
+                    <th>Keterangan Kehadiran</th>
+                    <th>Jenis Apel</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach($allAttendances as $index => $attendance)
+                <tr>
+                    <td class="no">{{ $index + 1 }}</td>
+                    <td>{{ $attendance->user_name }}</td>
+                    <td>{{ $attendance->keterangan_name }}</td>
+                    <td class="jenis-apel">{{ ucfirst($attendance->apel_type) }}</td>
+                </tr>
+                @endforeach
+            </tbody>
+        </table>
         @endif
 
         <div class="footer">
