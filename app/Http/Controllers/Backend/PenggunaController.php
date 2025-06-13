@@ -23,8 +23,8 @@ class PenggunaController extends Controller
     // Konsisten dengan migrasi: ['superadmin', 'pokmin', 'piket', 'pimpinan', 'personil']
     protected function getValidRoles(): array
     {
-        // Idealnya: return User::getDefinedRoles();
-        return User::getDefinedRoles();
+        // Idealnya: return User::getAssignableRoles();
+        return User::getAssignableRoles();
         // return ['superadmin', 'pokmin', 'piket', 'pimpinan', 'personil'];
     }
 

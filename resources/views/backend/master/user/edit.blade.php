@@ -194,6 +194,7 @@
                                                 class="text-danger">*</span></label>
                                         <select class="form-select @error('role') is-invalid @enderror" id="role"
                                             name="role" required>
+                                            <option value="">--- Pilih Role ---</option>
                                             @foreach ($roles as $roleValue)
                                             <option value="{{ $roleValue }}" {{ old('role', $user->role) == $roleValue ?
                                                 'selected' : '' }}>

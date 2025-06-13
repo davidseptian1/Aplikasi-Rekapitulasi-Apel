@@ -94,6 +94,20 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     /**
+     * Get the roles that can be assigned by other users.
+     * Excludes 'superadmin'.
+     *
+     * @return array
+     */
+    public static function getAssignableRoles(): array
+    {
+        // Filter array untuk menghapus 'superadmin'
+        return array_filter(self::getRoles(), function ($role) {
+            return $role !== 'superadmin';
+        });
+    }
+
+    /**
      * Get the biodata associated with the user.
      */
     public function biodata(): HasOne
@@ -155,10 +169,5 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->photos
             ? asset('storage/uploads/photos/' . $this->photos)
             : asset('assets/img/default-user.jpg');
-    }
-
-    public static function getDefinedRoles(): array
-    {
-        return ['superadmin', 'pokmin', 'piket', 'pimpinan', 'personil'];
     }
 }
