@@ -2,8 +2,10 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
+use App\Models\Biodata;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class Pangkat extends Model
 {
@@ -37,4 +39,15 @@ class Pangkat extends Model
         'updated_at' => 'datetime',
         'nilai_pangkat' => 'integer', // Tambahkan cast jika perlu
     ];
+
+    /**
+     * Get all of the biodatas for the Pangkat.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     */
+    public function biodatas()
+    {
+        // Sebuah Pangkat bisa dimiliki oleh banyak Biodata
+        return $this->hasMany(Biodata::class);
+    }
 }
