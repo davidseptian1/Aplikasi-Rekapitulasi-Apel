@@ -7,8 +7,10 @@ use App\Models\User;
 use App\Models\Piket;
 use App\Models\Subdis;
 use App\Models\JamApel;
+use Carbon\CarbonPeriod;
 use App\Models\ApelSession;
 use Illuminate\Http\Request;
+use App\Models\ApelAttendance;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB; // For distinct roles if no Role model
@@ -156,35 +158,47 @@ class DashboardController extends Controller
                 // 1. Tentukan Rentang Tanggal untuk Filter
                 $startDate = $request->input('start_date', Carbon::now()->startOfMonth()->format('Y-m-d'));
                 $endDate = $request->input('end_date', Carbon::now()->endOfMonth()->format('Y-m-d'));
+                $selectedType = $request->input('type', 'pagi');
 
                 // Kirim variabel tanggal ke view untuk ditampilkan di form filter
                 $data['startDate'] = $startDate;
                 $data['endDate'] = $endDate;
+                $data['selectedType'] = $selectedType;
 
                 // 2. Data Statistik Umum (tidak terpengaruh tanggal)
                 $data['total_personel_pimpinan'] = User::where('role', 'personil')->where('is_active', '1')->count();
                 $data['total_subdis_pimpinan'] = Subdis::count();
 
-                // 3. Data untuk Grafik Personel per Subdis (tidak terpengaruh tanggal)
-                $data['personel_per_subdis_chart'] = Subdis::withCount(['users as users_count' => fn($q) => $q->where('role', 'personil')->where('is_active', '1')])
-                    ->orderBy('name')
-                    ->get(['id', 'name']);
+                // 3. LOGIKA BARU: Data untuk "Tren Kehadiran Harian" (Line Chart)
+                // Diambil dari GrafikKehadiranController
+                $hadirKeteranganId = Keterangan::where('name', 'LIKE', 'Hadir%')->first()?->id;
 
-                // 4. Data BARU untuk Grafik Kehadiran Berdasarkan Rentang Tanggal
-                $kehadiranData = DB::table('apel_attendances')
-                    ->join('keterangans', 'apel_attendances.keterangan_id', '=', 'keterangans.id')
-                    ->join('apel_sessions', 'apel_attendances.apel_session_id', '=', 'apel_sessions.id')
+                $trenHarianQuery = ApelAttendance::join('apel_sessions', 'apel_attendances.apel_session_id', '=', 'apel_sessions.id')
                     ->whereBetween('apel_sessions.date', [$startDate, $endDate])
-                    ->select('keterangans.name', DB::raw('count(*) as total'))
-                    ->groupBy('keterangans.name')
-                    ->orderBy('total', 'desc')
-                    ->get();
+                    ->where('apel_sessions.type', $selectedType)
+                    ->select(DB::raw('DATE(apel_sessions.date) as tanggal'), DB::raw('count(apel_attendances.id) as total_hadir'))
+                    ->groupBy('tanggal')
+                    ->orderBy('tanggal', 'asc');
 
-                // Siapkan data untuk Chart.js
-                $data['kehadiranChartData'] = [
-                    'labels' => $kehadiranData->pluck('name'),
-                    'data' => $kehadiranData->pluck('total'),
-                ];
+                if ($hadirKeteranganId) {
+                    $trenHarianQuery->where('apel_attendances.keterangan_id', $hadirKeteranganId);
+                }
+                $trenHarianDataRaw = $trenHarianQuery->get()->keyBy('tanggal');
+
+                // Siapkan data untuk line chart, pastikan semua hari dalam rentang ada
+                $period = CarbonPeriod::create($startDate, $endDate);
+                $chartTrenHarianLabels = [];
+                $chartTrenHarianData = [];
+
+                foreach ($period as $date) {
+                    $dateString = $date->format('Y-m-d');
+                    $chartTrenHarianLabels[] = $date->format('d M'); // Format label (e.g., 01 Jun)
+                    $chartTrenHarianData[] = $trenHarianDataRaw->get($dateString, (object)['total_hadir' => 0])->total_hadir;
+                }
+
+                // Kirim data chart baru ke view
+                $data['chartTrenHarianLabels'] = $chartTrenHarianLabels;
+                $data['chartTrenHarianData'] = $chartTrenHarianData;
 
                 break;
 

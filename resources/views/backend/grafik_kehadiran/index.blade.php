@@ -66,7 +66,7 @@
                         <input type="date" class="form-control" id="end_date_filter" name="end_date"
                             value="{{ $endDate }}">
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-md-3">
                         <label for="subdis_filter_grafik" class="form-label">Pilih Subdis</label>
                         <select class="form-select" id="subdis_filter_grafik" name="subdis_id">
                             <option value="">-- Semua Subdis --</option>
@@ -78,6 +78,13 @@
                         </select>
                     </div>
                     <div class="col-md-2">
+                        <label for="type_filter_grafik" class="form-label">Sesi Apel</label>
+                        <select name="type" id="type_filter_grafik" class="form-select">
+                            <option value="pagi" {{ $selectedType=='pagi' ? 'selected' : '' }}>Pagi</option>
+                            <option value="sore" {{ $selectedType=='sore' ? 'selected' : '' }}>Sore</option>
+                        </select>
+                    </div>
+                    <div class="col-md-1">
                         <button type="submit" class="btn btn-primary w-100">
                             <i class="fas fa-filter me-1"></i> Filter
                         </button>
@@ -103,18 +110,6 @@
                     <h5>Persentase Keterangan</h5>
                     <div class="chart-container pie-chart-container">
                         <canvas id="persentaseKeteranganChart"></canvas>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="row">
-            {{-- GRAFIK BARU: Tren Kehadiran Harian (Line Chart) --}}
-            <div class="col-lg-12 mb-4">
-                <div class="chart-card">
-                    <h5>Tren Kehadiran Harian</h5>
-                    <div class="chart-container" style="height: 280px;">
-                        <canvas id="trenHarianChart"></canvas>
                     </div>
                 </div>
             </div>
@@ -204,39 +199,6 @@
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.fillText('Tidak ada data untuk ditampilkan.', persentaseKeteranganCtx.width / 2, persentaseKeteranganCtx.height / 2);
-        }
-
-        // CHART BARU: Tren Kehadiran Harian (Line Chart)
-        const trenHarianCtx = document.getElementById('trenHarianChart');
-        if (trenHarianCtx) {
-            new Chart(trenHarianCtx, {
-                type: 'line',
-                data: {
-                    labels: @json($chartTrenHarianLabels),
-                    datasets: [{
-                        label: 'Jumlah Personel Hadir',
-                        data: @json($chartTrenHarianData),
-                        fill: false,
-                        borderColor: 'rgb(75, 192, 192)',
-                        tension: 0.1
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            ticks: { precision: 0 }
-                        }
-                    },
-                    plugins: {
-                        legend: {
-                            display: false
-                        }
-                    }
-                }
-            });
         }
     });
 </script>

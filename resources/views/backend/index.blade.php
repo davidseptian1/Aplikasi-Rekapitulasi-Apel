@@ -583,22 +583,21 @@
         @endif
 
         // Pimpinan Dashboard: Chart
-        @if(Auth::user()->role === 'pimpinan' && isset($personel_per_subdis_chart))
-            const ctxPersonelSubdis = document.getElementById('personelSubdisChart');
-            if (ctxPersonelSubdis) {
-                const labels = @json($personel_per_subdis_chart->pluck('name'));
-                const dataValues = @json($personel_per_subdis_chart->pluck('users_count'));
-                new Chart(ctxPersonelSubdis, {
-                    type: 'bar',
+        @if(Auth::user()->role === 'pimpinan')
+             // Chart BARU: Tren Kehadiran Harian (Line Chart)
+            const trenHarianCtx = document.getElementById('trenHarianChart');
+            if (trenHarianCtx) {
+                new Chart(trenHarianCtx, {
+                    type: 'line',
                     data: {
-                        labels: labels,
+                        labels: @json($chartTrenHarianLabels),
                         datasets: [{
-                            label: 'Total Personel',
-                            data: dataValues,
-                            backgroundColor: 'rgba(0, 123, 255, 0.6)', // Primary color with opacity
-                            borderColor: 'rgba(0, 123, 255, 1)',
-                            borderWidth: 1,
-                            borderRadius: 4, // Rounded bars
+                            label: 'Jumlah Personel Hadir',
+                            data: @json($chartTrenHarianData),
+                            fill: true, // Beri warna di bawah garis
+                            backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                            borderColor: 'rgb(75, 192, 192)',
+                            tension: 0.1
                         }]
                     },
                     options: {
@@ -608,20 +607,13 @@
                             y: {
                                 beginAtZero: true,
                                 ticks: {
-                                    stepSize: Math.ceil(Math.max(...dataValues) / 5) || 1, // Dynamic step size
-                                    precision: 0
+                                    precision: 0 // Pastikan tidak ada desimal di sumbu Y
                                 }
-                            },
-                            x: { grid: { display: false } }
+                            }
                         },
                         plugins: {
-                            legend: { display: false },
-                            tooltip: {
-                                callbacks: {
-                                    label: function(context) {
-                                        return ' Jumlah: ' + context.parsed.y + ' Personel';
-                                    }
-                                }
+                            legend: {
+                                display: false // Sembunyikan legenda karena sudah jelas dari judul
                             }
                         }
                     }
