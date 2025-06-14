@@ -3,10 +3,12 @@
 namespace App\Models;
 
 use App\Models\User;
+use App\Models\Piket;
 use App\Models\Subdis;
 use App\Models\Biodata;
 use App\Models\Jabatan;
 use App\Models\Pangkat;
+use App\Models\ApelSession;
 use Illuminate\Support\Str;
 use App\Models\ApelAttendance;
 use Illuminate\Notifications\Notifiable;
@@ -159,6 +161,41 @@ class User extends Authenticatable implements MustVerifyEmail
     public function apelAttendances(): HasMany
     {
         return $this->hasMany(ApelAttendance::class, 'user_id');
+    }
+
+    /**
+     * Get all the apel sessions created by the user.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     */
+    public function createdApelSessions()
+    {
+        // A User has many ApelSession records via the 'created_by' foreign key.
+        return $this->hasMany(ApelSession::class, 'created_by');
+    }
+
+    /**
+     * Get all piket records where the user is a Pajaga.
+     */
+    public function piketSebagaiPajaga()
+    {
+        return $this->hasMany(Piket::class, 'pajaga_by');
+    }
+
+    /**
+     * Get all piket records where the user is a Bajaga First.
+     */
+    public function piketSebagaiBajagaFirst()
+    {
+        return $this->hasMany(Piket::class, 'bajaga_first_by');
+    }
+
+    /**
+     * Get all piket records where the user is a Bajaga Second.
+     */
+    public function piketSebagaiBajagaSecond()
+    {
+        return $this->hasMany(Piket::class, 'bajaga_second_by');
     }
 
     /**
