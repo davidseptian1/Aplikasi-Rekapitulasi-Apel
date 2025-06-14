@@ -59,7 +59,7 @@ class LaporanPersonelController extends Controller
 
         $data = [
             'title' => 'Laporan Keterangan Personel',
-            'pages' => 'Laporan Keterangan',
+            'pages' => 'Laporan Kehadiran',
             'filterDate' => $filterDate,
             'selectedType' => $selectedType, // Pass type to the view
             'selectedSubdisId' => $selectedSubdisId,
